@@ -38,6 +38,9 @@ impl grpc_types::service::telemetry::telemetry_service_server::TelemetryService 
         &self,
         request: Request<Streaming<SensorTelemetry>>,
     ) -> Result<Response<grpc_types::service::telemetry::Result>, Status> {
+        tracing::info!("=== TELEMETRY STREAM REQUEST RECEIVED ===");
+        tracing::info!("Request metadata: {:?}", request.metadata());
+
         let reply = grpc_types::service::telemetry::Result {
             result: grpc_types::service::telemetry::ResultType::Ok.into(),
         };
@@ -48,7 +51,7 @@ impl grpc_types::service::telemetry::telemetry_service_server::TelemetryService 
 
             match message {
                 Ok(Some(message)) => {
-                    tracing::debug!(data = ?message, "Received node sensor update");
+                    tracing::info!(data = ?message, "Received node sensor update");
 
                     match Telemetry::try_from(message) {
                         Ok(telemetry) => {

@@ -26,19 +26,23 @@ impl<S: TelemetryAdapter> SensorNode<S> {
         let mut value = 0;
 
         interval.reset();
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    if let Err(err) = self
+                        .sender
+                        .send_telemetry(Self::compose_message(&self.config.name, value))
+                        .await {
+                        tracing::error!("Failed to send telemetry: {}", err);
+                        break;
+                    }
 
-        tokio::select! {
-            _ = interval.tick() => {
-                let _ = self
-                    .sender
-                    .send_telemetry(Self::compose_message(&self.config.name, value))
-                    .await
-                    .inspect_err(|err| tracing::error!("Failed to send telemetry: {}", err));
-
-                value = value.wrapping_add(1);
-            }
-            _ = cancellation_token.cancelled() => {
-                tracing::info!("Cancellation token received, shutting down...");
+                    value = value.wrapping_add(1);
+                }
+                _ = cancellation_token.cancelled() => {
+                    tracing::info!("Cancellation token received, shutting down...");
+                    break;
+                }
             }
         }
     }

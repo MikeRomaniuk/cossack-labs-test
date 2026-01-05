@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
     }
     .expect("Failed to create tokio runtime");
 
-    let config = Config::from(cli.clone());
+    let config = Config::try_from(cli.clone())?;
 
     rt.block_on(async move {
         let _ = tokio_main(config, cli.telemetry_sink_address)
@@ -60,7 +60,6 @@ fn setup_logging() -> anyhow::Result<()> {
 
 async fn tokio_main(node_config: Config, sink_address: String) -> anyhow::Result<()> {
     tracing::info!("Starting sensor node");
-    tracing::info!("Node configuration: {:?}", node_config);
     tracing::info!("Sink address: {}", sink_address);
 
     let adapter = adapter::grpc::TelemetryClient::connect(sink_address, node_config.tls_config.clone()).await?;

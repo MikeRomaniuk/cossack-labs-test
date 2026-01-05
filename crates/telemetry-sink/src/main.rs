@@ -1,5 +1,6 @@
 use anyhow::Context;
 use clap::Parser;
+use tonic::transport::{Certificate, Identity, ServerTlsConfig};
 
 use crate::infrastructure::cli::Args;
 use crate::infrastructure::config::Config;
@@ -24,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     }
     .expect("Failed to create tokio runtime");
 
-    let config = Config::from(cli);
+    let config = Config::try_from(cli)?;
 
     rt.block_on(async move {
         let _ = tokio_main(config)
@@ -69,37 +70,24 @@ async fn tokio_main(config: Config) -> anyhow::Result<()> {
     use crate::domain::TelemetryService as DomainTelemetryService;
 
     tracing::info!("Starting telemetry sink");
-    tracing::info!("Configuration: {:?}", config);
 
     let cancellation_token = CancellationToken::new();
 
-    // Create channel for communication between gRPC server and domain service
     let (tx, rx) = tokio::sync::mpsc::channel(config.buffer_size);
 
-    // Create gRPC server adapter
     let grpc_server = TelemetryServer::new(tx);
 
-    // Create telemetry receiver adapter
     let telemetry_receiver = TelemetryService::new(rx);
 
-    // Create file logger adapter
-    let file_logger = FileLogger::new(&config.log_file)
-        .context("Failed to create file logger")?;
+    let file_logger = FileLogger::new(&config.log_file).context("Failed to create file logger")?;
 
-    // Create domain service with injected adapters
-    let mut domain_service = DomainTelemetryService::new(
-        telemetry_receiver,
-        file_logger,
-        config.clone(),
-    );
+    let mut domain_service = DomainTelemetryService::new(telemetry_receiver, file_logger, config.clone());
 
-    // Spawn domain service task
     let cancellation_token_clone = cancellation_token.clone();
     let domain_handle = tokio::spawn(async move {
         domain_service.run(cancellation_token_clone).await;
     });
 
-    // Start gRPC server
     let addr = config.ip;
     tracing::info!("Starting gRPC server on {}", addr);
 
@@ -113,26 +101,19 @@ async fn tokio_main(config: Config) -> anyhow::Result<()> {
             cancellation_token: CancellationToken,
         ) -> anyhow::Result<()> {
             let mut server_builder = if let Some(tls_config) = tls_config {
-                tracing::info!("Configuring mTLS for server");
-                
-                let cert = tokio::fs::read(&tls_config.cert).await
-                    .context("Failed to read server certificate")?;
-                let key = tokio::fs::read(&tls_config.key).await
-                    .context("Failed to read server private key")?;
-                let ca = tokio::fs::read(&tls_config.ca).await
-                    .context("Failed to read CA certificate")?;
+                let cert = tls_config.cert;
+                let key = tls_config.key;
+                let server_identity = Identity::from_pem(cert, key);
 
-                let server_identity = tonic::transport::Identity::from_pem(cert, key);
-                let ca_cert = tonic::transport::Certificate::from_pem(ca);
+                let client_ca_cert = tls_config.ca;
+                let client_ca_cert = Certificate::from_pem(client_ca_cert);
 
-                let tls = tonic::transport::ServerTlsConfig::new()
+                let tls = ServerTlsConfig::new()
                     .identity(server_identity)
-                    .client_ca_root(ca_cert);
-
-                Server::builder()
-                    .tls_config(tls)
-                    .context("Failed to configure TLS")?
+                    .client_ca_root(client_ca_cert);
+                Server::builder().tls_config(tls).context("Failed to configure TLS")?
             } else {
+                tracing::info!("No TLS configuration provided, starting without mTLS");
                 Server::builder()
             };
 
@@ -146,7 +127,6 @@ async fn tokio_main(config: Config) -> anyhow::Result<()> {
         start_server(addr, grpc_server, tls_config_clone, server_cancellation_token).await
     });
 
-    // Wait for shutdown signal
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             tracing::info!("Received shutdown signal");

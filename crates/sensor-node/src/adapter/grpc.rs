@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use anyhow::Context;
 use grpc_types::service::telemetry as grpc;
 use grpc_types::service::telemetry::telemetry_service_client::TelemetryServiceClient;
@@ -5,6 +7,7 @@ use interface_types::Telemetry;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tonic::codegen::tokio_stream::wrappers::ReceiverStream;
+use tonic::transport::{Certificate, ClientTlsConfig, Identity};
 
 use crate::adapter::TelemetryAdapter;
 use crate::infrastructure::config::TlsConfig;
@@ -17,23 +20,26 @@ pub struct TelemetryClient {
 impl TelemetryClient {
     const STREAM_SIZE: usize = 10;
 
-    pub async fn connect(dst: String, tls_config: Option<TlsConfig>) -> anyhow::Result<Self> {
+    pub async fn connect(mut dst: String, tls_config: Option<TlsConfig>) -> anyhow::Result<Self> {
         let client = if let Some(tls_config) = tls_config {
             tracing::info!("Configuring mTLS for client");
 
-            let cert = tokio::fs::read(&tls_config.cert).await
-                .context("Failed to read client certificate")?;
-            let key = tokio::fs::read(&tls_config.key).await
-                .context("Failed to read client private key")?;
-            let ca = tokio::fs::read(&tls_config.ca).await
-                .context("Failed to read CA certificate")?;
+            // Ensure the destination uses https:// when TLS is configured
+            if dst.starts_with("http://") {
+                dst = dst.replace("http://", "https://");
+                tracing::info!("Converted address to HTTPS: {}", dst);
+            } else if !dst.starts_with("https://") {
+                dst = format!("https://{}", dst);
+                tracing::info!("Added HTTPS scheme to address: {}", dst);
+            }
 
-            let client_identity = tonic::transport::Identity::from_pem(cert, key);
-            let ca_cert = tonic::transport::Certificate::from_pem(ca);
+            let server_root_ca_cert = Certificate::from_pem(tls_config.ca);
+            let client_identity = Identity::from_pem(tls_config.cert, tls_config.key);
 
-            let tls = tonic::transport::ClientTlsConfig::new()
-                .identity(client_identity)
-                .ca_certificate(ca_cert);
+            let tls = ClientTlsConfig::new()
+                .domain_name("localhost")
+                .ca_certificate(server_root_ca_cert)
+                .identity(client_identity);
 
             let channel = tonic::transport::Channel::from_shared(dst)
                 .context("Failed to parse server address")?
@@ -58,10 +64,15 @@ impl TelemetryClient {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(Self::STREAM_SIZE);
 
         tokio::spawn(async move {
-            client
-                .open_telemetry_stream(ReceiverStream::new(telemetry_rx))
-                .await
-                .expect("Telemetry stream terminated by core")
+            match client.open_telemetry_stream(ReceiverStream::new(telemetry_rx)).await {
+                Ok(response) => {
+                    tracing::info!("Telemetry stream established successfully: {:?}", response);
+                }
+                Err(e) => {
+                    tracing::error!("Telemetry stream error: {:?}", e);
+                    tracing::error!("Error source: {:?}", e.source());
+                }
+            }
         });
 
         telemetry_tx

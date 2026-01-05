@@ -26,30 +26,41 @@ pub(crate) struct Config {
 
 #[derive(Debug, Clone)]
 pub(crate) struct TlsConfig {
-    /// Path to the server certificate file
-    pub cert: PathBuf,
+    /// Server certificate file
+    pub cert: String,
 
-    /// Path to the server private key file
-    pub key: PathBuf,
+    /// Server private key file
+    pub key: String,
 
-    /// Path to the CA certificate file for client verification
-    pub ca: PathBuf,
+    /// CA certificate file for client verification
+    pub ca: String,
 }
 
-impl From<Args> for Config {
-    fn from(value: Args) -> Self {
+impl TryFrom<Args> for Config {
+    type Error = anyhow::Error;
+    fn try_from(value: Args) -> Result<Self, Self::Error> {
         let tls_config = match (value.tls_cert, value.tls_key, value.tls_ca) {
-            (Some(cert), Some(key), Some(ca)) => Some(TlsConfig { cert, key, ca }),
+            (Some(cert), Some(key), Some(ca)) => {
+                let server_root_ca_cert = std::fs::read_to_string(&ca)?;
+                let client_cert = std::fs::read_to_string(&cert)?;
+                let client_key = std::fs::read_to_string(&key)?;
+
+                Some(TlsConfig {
+                    cert: client_cert,
+                    key: client_key,
+                    ca: server_root_ca_cert,
+                })
+            },
             _ => None,
         };
 
-        Self {
+        Ok(Self {
             ip: value.ip,
             log_file: value.log_file,
             buffer_size: value.buffer_size,
             buffer_flush_interval: value.buffer_flush_interval,
             rate_limit: value.rate_limit,
             tls_config,
-        }
+        })
     }
 }
