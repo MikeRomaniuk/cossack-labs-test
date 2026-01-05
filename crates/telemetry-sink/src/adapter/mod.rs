@@ -1,7 +1,5 @@
-use interface_types::Telemetry;
-
 mod file_logger;
 mod grpc;
 
-pub use file_logger::FileLogger;
-pub use grpc::{TelemetryServer, TelemetryService};
+pub(crate) use file_logger::FileLogger;
+pub(crate) use grpc::{TelemetryServer, TelemetryService};

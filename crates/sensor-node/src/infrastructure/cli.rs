@@ -1,4 +1,3 @@
-use core::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap::Parser;

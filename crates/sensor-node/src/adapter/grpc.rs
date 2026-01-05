@@ -1,6 +1,6 @@
-use std::error::Error;
+use core::error::Error as _;
 
-use anyhow::Context;
+use anyhow::Context as _;
 use grpc_types::service::telemetry as grpc;
 use grpc_types::service::telemetry::telemetry_service_client::TelemetryServiceClient;
 use interface_types::Telemetry;
@@ -12,15 +12,15 @@ use tonic::transport::{Certificate, ClientTlsConfig, Identity};
 use crate::adapter::TelemetryAdapter;
 use crate::infrastructure::config::TlsConfig;
 
-pub struct TelemetryClient {
-    client: TelemetryServiceClient<tonic::transport::Channel>,
+pub(crate) struct TelemetryClient {
+    _client: TelemetryServiceClient<tonic::transport::Channel>,
     telemetry_tx: Sender<grpc::SensorTelemetry>,
 }
 
 impl TelemetryClient {
     const STREAM_SIZE: usize = 10;
 
-    pub async fn connect(dst: String, tls_config: Option<TlsConfig>) -> anyhow::Result<Self> {
+    pub(crate) async fn connect(dst: String, tls_config: Option<TlsConfig>) -> anyhow::Result<Self> {
         let client = if let Some(tls_config) = tls_config {
             tracing::info!("Configuring mTLS for client");
 
@@ -46,12 +46,15 @@ impl TelemetryClient {
         };
 
         let telemetry_tx = Self::open_telemetry_stream(client.clone());
-        Ok(Self { client, telemetry_tx })
+        Ok(Self {
+            _client: client,
+            telemetry_tx,
+        })
     }
 
     fn open_telemetry_stream(
         mut client: TelemetryServiceClient<tonic::transport::Channel>,
-    ) -> mpsc::Sender<grpc::SensorTelemetry> {
+    ) -> Sender<grpc::SensorTelemetry> {
         let (telemetry_tx, telemetry_rx) = mpsc::channel(Self::STREAM_SIZE);
 
         tokio::spawn(async move {

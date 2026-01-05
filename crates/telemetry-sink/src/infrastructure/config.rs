@@ -15,7 +15,7 @@ pub(crate) struct Config {
     pub buffer_size: usize,
 
     /// Interval between flushes of the in-memory buffer
-    pub buffer_flush_interval: std::time::Duration,
+    pub buffer_flush_interval: core::time::Duration,
 
     /// Maximum number of messages to receive per second
     pub rate_limit: usize,

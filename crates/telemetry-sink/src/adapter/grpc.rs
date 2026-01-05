@@ -1,4 +1,3 @@
-use anyhow::Context;
 use grpc_types::service::telemetry::SensorTelemetry;
 use interface_types::Telemetry;
 use tokio::sync::mpsc;
@@ -6,12 +5,12 @@ use tonic::{Request, Response, Status, Streaming};
 
 use crate::interface::TelemetryReceiver;
 
-pub struct TelemetryService {
+pub(crate) struct TelemetryService {
     channel: mpsc::Receiver<Telemetry>,
 }
 
 impl TelemetryService {
-    pub fn new(channel: mpsc::Receiver<Telemetry>) -> Self {
+    pub(crate) fn new(channel: mpsc::Receiver<Telemetry>) -> Self {
         Self { channel }
     }
 }
@@ -22,12 +21,12 @@ impl TelemetryReceiver for TelemetryService {
     }
 }
 
-pub struct TelemetryServer {
+pub(crate) struct TelemetryServer {
     channel: mpsc::Sender<Telemetry>,
 }
 
 impl TelemetryServer {
-    pub fn new(channel: mpsc::Sender<Telemetry>) -> Self {
+    pub(crate) fn new(channel: mpsc::Sender<Telemetry>) -> Self {
         Self { channel }
     }
 }

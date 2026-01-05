@@ -46,10 +46,10 @@ pub(crate) struct Args {
     pub tls_ca: Option<PathBuf>,
 }
 
-fn milliseconds_parser(s: &str) -> Result<std::time::Duration, String> {
+fn milliseconds_parser(s: &str) -> Result<core::time::Duration, String> {
     s.parse::<u64>()
         .ok()
         .filter(|&n| n > 0)
-        .map(std::time::Duration::from_millis)
+        .map(core::time::Duration::from_millis)
         .ok_or_else(|| "seconds must be a positive integer".to_owned())
 }

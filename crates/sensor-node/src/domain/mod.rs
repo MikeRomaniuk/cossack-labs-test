@@ -3,13 +3,13 @@ use tokio_util::sync::CancellationToken;
 use crate::adapter::TelemetryAdapter;
 use crate::infrastructure::config::Config;
 
-pub struct SensorNode<S: TelemetryAdapter> {
+pub(crate) struct SensorNode<S: TelemetryAdapter> {
     sender: S,
     config: Config,
 }
 
 impl<S: TelemetryAdapter> SensorNode<S> {
-    pub fn new(sender: S, config: Config) -> Self {
+    pub(crate) fn new(sender: S, config: Config) -> Self {
         Self { sender, config }
     }
 
@@ -21,8 +21,8 @@ impl<S: TelemetryAdapter> SensorNode<S> {
         }
     }
 
-    pub async fn run(&self, cancellation_token: CancellationToken) {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(1) / self.config.rate);
+    pub(crate) async fn run(&self, cancellation_token: CancellationToken) {
+        let mut interval = tokio::time::interval(core::time::Duration::from_secs(1) / self.config.rate);
         let mut value = 0;
 
         interval.reset();

@@ -1,6 +1,6 @@
 mod rate_limited_queue;
 
-use std::time::Duration;
+use core::time::Duration;
 
 use interface_types::Telemetry;
 use tokio_util::sync::CancellationToken;
@@ -9,7 +9,7 @@ use crate::domain::rate_limited_queue::{QueueConfig, RateLimitedQueue};
 use crate::infrastructure::config::Config;
 use crate::interface::{LogWriter, TelemetryReceiver};
 
-pub struct TelemetryService<R: TelemetryReceiver, W: LogWriter<Telemetry>> {
+pub(crate) struct TelemetryService<R: TelemetryReceiver, W: LogWriter<Telemetry>> {
     receiver: R,
     writer: W,
     deque: RateLimitedQueue<Telemetry>,
@@ -18,7 +18,7 @@ pub struct TelemetryService<R: TelemetryReceiver, W: LogWriter<Telemetry>> {
 }
 
 impl<R: TelemetryReceiver, W: LogWriter<Telemetry>> TelemetryService<R, W> {
-    pub fn new(receiver: R, writer: W, config: Config) -> Self {
+    pub(crate) fn new(receiver: R, writer: W, config: Config) -> Self {
         let queue_config = QueueConfig {
             max_capacity: config.buffer_size,
             rate_limit: config.rate_limit,
@@ -35,7 +35,7 @@ impl<R: TelemetryReceiver, W: LogWriter<Telemetry>> TelemetryService<R, W> {
         }
     }
 
-    pub async fn run(&mut self, cancellation_token: CancellationToken) {
+    pub(crate) async fn run(&mut self, cancellation_token: CancellationToken) {
         let mut flush = tokio::time::interval(self.config.buffer_flush_interval);
 
         loop {

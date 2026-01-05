@@ -1,11 +1,11 @@
+use core::time::Duration;
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use tokio::sync::mpsc;
 
 /// Configuration for the rate-limited queue
-pub struct QueueConfig {
+pub(super) struct QueueConfig {
     /// Maximum number of items the queue can hold
     pub max_capacity: usize,
     /// Maximum number of items that can be processed per time window
@@ -15,7 +15,7 @@ pub struct QueueConfig {
 }
 
 /// A fixed-size queue with rate limiting that drops requests exceeding the limit
-pub struct RateLimitedQueue<T> {
+pub(super) struct RateLimitedQueue<T> {
     queue: VecDeque<T>,
     config: QueueConfig,
     rate_tracker: RateTracker,
@@ -58,26 +58,10 @@ impl RateTracker {
     fn record_request(&mut self) {
         self.requests.push_back(Instant::now());
     }
-
-    /// Get current request count in the window
-    fn current_count(&mut self) -> usize {
-        let now = Instant::now();
-
-        // Clean up old requests
-        while let Some(&oldest) = self.requests.front() {
-            if now.duration_since(oldest) > self.window {
-                self.requests.pop_front();
-            } else {
-                break;
-            }
-        }
-
-        self.requests.len()
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EnqueueResult {
+pub(super) enum EnqueueResult {
     /// Item was successfully enqueued
     Success,
     /// Item was dropped because queue is full
@@ -88,7 +72,7 @@ pub enum EnqueueResult {
 
 impl<T> RateLimitedQueue<T> {
     /// Create a new rate-limited queue with the given configuration
-    pub fn new(config: QueueConfig, notifier: mpsc::Sender<()>) -> Self {
+    pub(super) fn new(config: QueueConfig, notifier: mpsc::Sender<()>) -> Self {
         Self {
             queue: VecDeque::with_capacity(config.max_capacity),
             rate_tracker: RateTracker::new(config.rate_limit, config.time_window),
@@ -99,7 +83,7 @@ impl<T> RateLimitedQueue<T> {
 
     /// Attempt to enqueue an item
     /// Returns EnqueueResult indicating whether the item was accepted or dropped
-    pub async fn enqueue(&mut self, item: T) -> EnqueueResult {
+    pub(super) async fn enqueue(&mut self, item: T) -> EnqueueResult {
         // Check rate limit first
         if !self.rate_tracker.can_accept() {
             return EnqueueResult::RateLimitExceeded;
@@ -120,36 +104,12 @@ impl<T> RateLimitedQueue<T> {
     }
 
     /// Dequeue an item from the front of the queue
-    pub fn dequeue(&mut self) -> Option<T> {
+    #[cfg(test)] // used in tests to ensure correct behavior
+    pub(super) fn dequeue(&mut self) -> Option<T> {
         self.queue.pop_front()
     }
 
-    /// Get the current number of items in the queue
-    pub fn len(&self) -> usize {
-        self.queue.len()
-    }
-
-    /// Check if the queue is empty
-    pub fn is_empty(&self) -> bool {
-        self.queue.is_empty()
-    }
-
-    /// Check if the queue is full
-    pub fn is_full(&self) -> bool {
-        self.queue.len() >= self.config.max_capacity
-    }
-
-    /// Get the current rate limit usage (requests in current window)
-    pub fn current_rate_count(&mut self) -> usize {
-        self.rate_tracker.current_count()
-    }
-
-    /// Clear all items from the queue
-    pub fn clear(&mut self) {
-        self.queue.clear();
-    }
-
-    pub fn dequeue_all(&mut self) -> Vec<T> {
+    pub(super) fn dequeue_all(&mut self) -> Vec<T> {
         self.queue.drain(..).collect()
     }
 }
@@ -170,7 +130,6 @@ mod tests {
 
         assert_eq!(queue.enqueue(1).await, EnqueueResult::Success);
         assert_eq!(queue.enqueue(2).await, EnqueueResult::Success);
-        assert_eq!(queue.len(), 2);
 
         assert_eq!(queue.dequeue(), Some(1));
         assert_eq!(queue.dequeue(), Some(2));
@@ -192,8 +151,6 @@ mod tests {
         assert_eq!(queue.enqueue(3).await, EnqueueResult::Success);
         assert_eq!(queue.enqueue(4).await, EnqueueResult::QueueFull);
 
-        assert!(queue.is_full());
-        assert_eq!(queue.len(), 3);
         assert_eq!(rx.recv().await, Some(()));
     }
 
@@ -254,15 +211,11 @@ mod tests {
             queue.enqueue(i).await;
         }
 
-        assert_eq!(queue.len(), 5);
-
         // Dequeue all
         let items = queue.dequeue_all();
 
         assert_eq!(items.len(), 5);
         assert_eq!(items, vec![0, 1, 2, 3, 4]);
-        assert_eq!(queue.len(), 0);
-        assert!(queue.is_empty());
     }
 
     #[tokio::test]

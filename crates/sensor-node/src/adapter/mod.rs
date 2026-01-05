@@ -1,5 +1,5 @@
-pub mod grpc;
+pub(crate) mod grpc;
 
-pub trait TelemetryAdapter {
+pub(crate) trait TelemetryAdapter {
     fn send_telemetry(&self, message: interface_types::Telemetry) -> impl Future<Output = anyhow::Result<()>> + Send;
 }

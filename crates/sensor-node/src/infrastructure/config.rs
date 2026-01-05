@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::infrastructure::cli::Args;
 
 #[derive(Debug, Clone)]
@@ -30,18 +28,6 @@ pub(crate) struct TlsConfig {
 }
 
 impl Config {
-    pub fn new(name: String, rate: u32, telemetry_sink_address: String, tls_config: Option<TlsConfig>) -> Self {
-        Self {
-            name,
-            rate,
-            telemetry_sink_address,
-            tls_config,
-        }
-    }
-
-    /// Normalizes the telemetry sink address based on TLS configuration.
-    /// - If TLS is enabled: ensures the address uses `https://` scheme
-    /// - If TLS is disabled: ensures the address uses `http://` scheme (or no scheme)
     fn normalize_sink_address(address: String, tls_enabled: bool) -> String {
         if tls_enabled {
             // TLS enabled: enforce HTTPS

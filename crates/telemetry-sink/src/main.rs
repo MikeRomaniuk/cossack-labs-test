@@ -1,5 +1,5 @@
-use anyhow::Context;
-use clap::Parser;
+use anyhow::Context as _;
+use clap::Parser as _;
 use tonic::transport::{Certificate, Identity, ServerTlsConfig};
 
 use crate::infrastructure::cli::Args;
@@ -95,7 +95,7 @@ async fn tokio_main(config: Config) -> anyhow::Result<()> {
     let tls_config_clone = config.tls_config.clone();
     let server_handle = tokio::spawn(async move {
         async fn start_server(
-            addr: std::net::SocketAddr,
+            addr: core::net::SocketAddr,
             grpc_server: TelemetryServer,
             tls_config: Option<infrastructure::config::TlsConfig>,
             cancellation_token: CancellationToken,

@@ -12,7 +12,6 @@ anyhow = { workspace = true }
 tokio = {  workspace = true, features = ["rt-multi-thread", "signal", "fs"] }
 grpc-types = { workspace = true }
 tonic = { workspace = true }
-thiserror = { workspace = true }
 interface-types = { workspace = true }
 tokio-util = { workspace = true }
 

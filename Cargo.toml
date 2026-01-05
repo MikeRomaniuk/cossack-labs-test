@@ -13,7 +13,6 @@ tonic = { version = "0.14.2", features = ["tls-ring"] }
 prost = "0.14.1"
 prost-types = "0.14.1"
 tonic-prost = "0.14.2"
-tonic-health = "0.14.2"
 tonic-prost-build = "0.14.2"
 clap = "4.5.54"
 tracing = "0.1.44"
@@ -21,7 +20,6 @@ tracing-subscriber = "0.3.22"
 anyhow = "1.0.100"
 tokio = "1.49.0"
 grpc-types = { path = "crates/grpc-types" }
-thiserror = "2.0.17"
 interface-types = { path = "crates/interface-types" }
 tokio-util = "0.7.18"
 
@@ -95,7 +93,6 @@ checked_conversions = "warn"
 get_unwrap = "warn"
 similar_names = "warn" # Reduce risk of confusing similar names together, and protects against typos when variable shadowing was intended.
 str_to_string = "warn"
-string_to_string = "warn"
 std_instead_of_core = "warn"
 separated_literal_suffix = "warn"
 unused_self = "warn"

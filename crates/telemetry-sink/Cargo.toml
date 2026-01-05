@@ -13,8 +13,6 @@ tokio = {  workspace = true, features = ["rt-multi-thread", "signal", "fs"] }
 grpc-types = { workspace = true }
 interface-types = { workspace = true }
 tonic = { workspace = true }
-tonic-health = { workspace = true }
-tonic-prost = { workspace = true }
 tokio-util = { workspace = true }
 
 [lints]

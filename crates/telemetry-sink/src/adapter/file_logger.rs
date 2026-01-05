@@ -1,26 +1,19 @@
-use std::collections::VecDeque;
-use std::fmt::Debug;
+use core::fmt::Debug;
 use std::fs::File;
-use std::io::Write;
+use std::io::Write as _;
 use std::path::Path;
-
-use interface_types::Telemetry;
 
 use crate::interface::LogWriter;
 
-pub struct FileLogger {
-    queue: VecDeque<Telemetry>,
+pub(crate) struct FileLogger {
     file: File,
 }
 
 impl FileLogger {
-    pub fn new(path: &Path) -> anyhow::Result<Self> {
+    pub(crate) fn new(path: &Path) -> anyhow::Result<Self> {
         let file = File::create(path)?;
 
-        Ok(Self {
-            queue: VecDeque::new(),
-            file,
-        })
+        Ok(Self { file })
     }
 }
 
