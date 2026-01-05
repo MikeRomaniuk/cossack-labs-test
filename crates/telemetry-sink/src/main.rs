@@ -104,11 +104,46 @@ async fn tokio_main(config: Config) -> anyhow::Result<()> {
     tracing::info!("Starting gRPC server on {}", addr);
 
     let server_cancellation_token = cancellation_token.clone();
+    let tls_config_clone = config.tls_config.clone();
     let server_handle = tokio::spawn(async move {
-        Server::builder()
-            .add_service(TelemetryServiceServer::new(grpc_server))
-            .serve_with_shutdown(addr, server_cancellation_token.cancelled())
-            .await
+        async fn start_server(
+            addr: std::net::SocketAddr,
+            grpc_server: TelemetryServer,
+            tls_config: Option<infrastructure::config::TlsConfig>,
+            cancellation_token: CancellationToken,
+        ) -> anyhow::Result<()> {
+            let mut server_builder = if let Some(tls_config) = tls_config {
+                tracing::info!("Configuring mTLS for server");
+                
+                let cert = tokio::fs::read(&tls_config.cert).await
+                    .context("Failed to read server certificate")?;
+                let key = tokio::fs::read(&tls_config.key).await
+                    .context("Failed to read server private key")?;
+                let ca = tokio::fs::read(&tls_config.ca).await
+                    .context("Failed to read CA certificate")?;
+
+                let server_identity = tonic::transport::Identity::from_pem(cert, key);
+                let ca_cert = tonic::transport::Certificate::from_pem(ca);
+
+                let tls = tonic::transport::ServerTlsConfig::new()
+                    .identity(server_identity)
+                    .client_ca_root(ca_cert);
+
+                Server::builder()
+                    .tls_config(tls)
+                    .context("Failed to configure TLS")?
+            } else {
+                Server::builder()
+            };
+
+            server_builder
+                .add_service(TelemetryServiceServer::new(grpc_server))
+                .serve_with_shutdown(addr, cancellation_token.cancelled())
+                .await
+                .context("gRPC server failed")
+        }
+
+        start_server(addr, grpc_server, tls_config_clone, server_cancellation_token).await
     });
 
     // Wait for shutdown signal

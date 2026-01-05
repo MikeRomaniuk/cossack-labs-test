@@ -9,7 +9,7 @@ clap = { workspace = true, features = ["derive"] }
 tracing = { workspace = true }
 tracing-subscriber = {  workspace = true, features = ["env-filter"] }
 anyhow = { workspace = true }
-tokio = {  workspace = true, features = ["rt-multi-thread", "signals"] }
+tokio = {  workspace = true, features = ["rt-multi-thread", "signal", "fs"] }
 grpc-types = { workspace = true }
 interface-types = { workspace = true }
 tonic = { workspace = true }

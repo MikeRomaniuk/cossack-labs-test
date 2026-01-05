@@ -32,6 +32,18 @@ pub(crate) struct Args {
     /// Defaults to the number of cores available to the system.
     #[clap(short, long)]
     pub worker_threads: Option<usize>,
+
+    /// Path to the server certificate file (PEM format) for mTLS
+    #[clap(long)]
+    pub tls_cert: Option<PathBuf>,
+
+    /// Path to the server private key file (PEM format) for mTLS
+    #[clap(long)]
+    pub tls_key: Option<PathBuf>,
+
+    /// Path to the CA certificate file (PEM format) for client verification
+    #[clap(long)]
+    pub tls_ca: Option<PathBuf>,
 }
 
 fn milliseconds_parser(s: &str) -> Result<std::time::Duration, String> {
