@@ -1,0 +1,14 @@
+# Build artifacts
+/target
+/.claude
+CLAUDE.md
+# Editor/IDE files
+*~
+/tags
+.idea
+.vscode
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sw?

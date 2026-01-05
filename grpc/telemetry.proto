@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package telemetry;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// Telemetry from a remote device
+message SensorTelemetry {
+  // Sensor name
+  string name = 1;
+  // Sensor value
+  uint32 value = 2;
+  // Timestamp when the value was read.
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+// Result type for all sorts of requests
+enum ResultType {
+  RESULT_TYPE_UNSPECIFIED = 0;
+  RESULT_TYPE_OK = 1;
+  RESULT_TYPE_ERROR = -1;
+}
+
+// Result for all types without specific response
+message Result {
+  // The actual result
+  ResultType result = 1;
+}
+
+service TelemetryService {
+  rpc OpenTelemetryStream(stream SensorTelemetry) returns (Result);
+}

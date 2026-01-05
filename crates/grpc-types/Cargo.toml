@@ -1,0 +1,16 @@
+[package]
+name = "grpc-types"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tonic = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+tonic-prost = { workspace = true }
+interface-types = { workspace = true }
+
+[build-dependencies]
+tonic-prost = { workspace = true }
+tonic-prost-build = { workspace = true }
