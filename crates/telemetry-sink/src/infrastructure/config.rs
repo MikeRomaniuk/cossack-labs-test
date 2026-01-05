@@ -50,7 +50,7 @@ impl TryFrom<Args> for Config {
                     key: client_key,
                     ca: server_root_ca_cert,
                 })
-            },
+            }
             _ => None,
         };
 

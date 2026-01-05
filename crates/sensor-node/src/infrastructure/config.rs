@@ -10,6 +10,9 @@ pub(crate) struct Config {
     /// Rate of telemetry messages per second
     pub rate: u32,
 
+    /// Telemetry sink address (normalized to use correct scheme)
+    pub telemetry_sink_address: String,
+
     /// mTLS configuration
     pub tls_config: Option<TlsConfig>,
 }
@@ -27,8 +30,41 @@ pub(crate) struct TlsConfig {
 }
 
 impl Config {
-    pub fn new(name: String, rate: u32, tls_config: Option<TlsConfig>) -> Self {
-        Self { name, rate, tls_config }
+    pub fn new(name: String, rate: u32, telemetry_sink_address: String, tls_config: Option<TlsConfig>) -> Self {
+        Self {
+            name,
+            rate,
+            telemetry_sink_address,
+            tls_config,
+        }
+    }
+
+    /// Normalizes the telemetry sink address based on TLS configuration.
+    /// - If TLS is enabled: ensures the address uses `https://` scheme
+    /// - If TLS is disabled: ensures the address uses `http://` scheme (or no scheme)
+    fn normalize_sink_address(address: String, tls_enabled: bool) -> String {
+        if tls_enabled {
+            // TLS enabled: enforce HTTPS
+            if let Some(stripped) = address.strip_prefix("http://") {
+                let https_addr = format!("https://{stripped}");
+                tracing::info!("Converted address to HTTPS for mTLS: {https_addr}");
+                https_addr
+            } else if !address.starts_with("https://") {
+                let https_addr = format!("https://{address}");
+                tracing::info!("Added HTTPS scheme for mTLS: {https_addr}");
+                https_addr
+            } else {
+                address
+            }
+        } else {
+            // TLS disabled: ensure HTTP or no scheme
+            if address.starts_with("https://") {
+                tracing::warn!(
+                    "Address uses HTTPS scheme but TLS is not configured. This may cause connection issues."
+                );
+            }
+            address
+        }
     }
 }
 
@@ -50,9 +86,13 @@ impl TryFrom<Args> for Config {
             _ => None,
         };
 
+        let tls_enabled = tls_config.is_some();
+        let telemetry_sink_address = Self::normalize_sink_address(value.telemetry_sink_address, tls_enabled);
+
         Ok(Self {
             name: value.name,
             rate: value.rate,
+            telemetry_sink_address,
             tls_config,
         })
     }

@@ -20,18 +20,9 @@ pub struct TelemetryClient {
 impl TelemetryClient {
     const STREAM_SIZE: usize = 10;
 
-    pub async fn connect(mut dst: String, tls_config: Option<TlsConfig>) -> anyhow::Result<Self> {
+    pub async fn connect(dst: String, tls_config: Option<TlsConfig>) -> anyhow::Result<Self> {
         let client = if let Some(tls_config) = tls_config {
             tracing::info!("Configuring mTLS for client");
-
-            // Ensure the destination uses https:// when TLS is configured
-            if dst.starts_with("http://") {
-                dst = dst.replace("http://", "https://");
-                tracing::info!("Converted address to HTTPS: {}", dst);
-            } else if !dst.starts_with("https://") {
-                dst = format!("https://{}", dst);
-                tracing::info!("Added HTTPS scheme to address: {}", dst);
-            }
 
             let server_root_ca_cert = Certificate::from_pem(tls_config.ca);
             let client_identity = Identity::from_pem(tls_config.cert, tls_config.key);
